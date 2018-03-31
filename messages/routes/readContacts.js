@@ -5,6 +5,8 @@ const path = require('path');
 const csv = require('csvtojson');
 const pool = require('../../db');
 const _ = require('lodash');
+const config = require('../../config');
+const twilio = require('../../twilio');
 
 // const csvPath = __dirname + '/../contact.csv';
 const multer = require('multer');
@@ -26,13 +28,13 @@ contact.route('/').get(async (req, res) => {
     return res.status(200).json({
       data: result,
       status: 'success',
-      message: 'get data successfully'
+      message: 'got data successfully'
     });
   } catch (error) {
     return res.status(500).json({
       data: [],
       status: 'Failed',
-      message: 'somthing went wrong'
+      message: 'something went wrong'
     });
   }
 });
@@ -107,12 +109,31 @@ contact.route('/').post(upload, async (req, res) => {
       message: 'saved data successfully'
     });
   } catch (err) {
-    console.log('errror---------', err);
+    console.log('error---------', err);
   }
 });
 
 contact.route('/:id').get(async (req, res) => {
   //  send sms to a paticular mobile
+  // const accountSid = 'ACaae3e2190a35b70c273ac0c23c65e525';
+  // const authToken = '4fc110c56644c898b85b8f2730d5c977';
+  const { id } = req.params;
+  const [clientDetail] = await pool.query(
+    `SELECT mobile FROM contacts WHERE id = ${id}`
+  );
+  // console.log('client', clientDetail[0].mobile);
+  const client = require('twilio')(twilio.accountSid, twilio.authToken);
+  client.messages
+    .create({
+      to: `+91${clientDetail[0].mobile}`,
+      from: '+919892641971',
+      body: Math.floor(100000 + Math.random() * 900000)
+    })
+    .then(message => {
+      console.log(message.sid);
+      console.log('njdhdj', message);
+      //store sent message or qued messages
+    });
 });
 
 module.exports = contact;
