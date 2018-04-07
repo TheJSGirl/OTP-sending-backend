@@ -7,7 +7,6 @@ const pool = require('../../db');
 const _ = require('lodash');
 const config = require('../../config');
 const twilio = require('../../twilio');
-
 // const csvPath = __dirname + '/../contact.csv';
 const multer = require('multer');
 const upload = multer({
@@ -41,6 +40,7 @@ contact.route('/').get(async (req, res) => {
 
 contact.route('/').post(upload, async (req, res) => {
   try {
+    // console.log('file', req.file);
     /**
      * checking file exist or not
      */
@@ -75,8 +75,8 @@ contact.route('/').post(upload, async (req, res) => {
     }
     const csvPath = req.file.path;
 
-    const result = await csvParser(csvPath);
-    if (!result.length) {
+    const jsonContacts = await csvParser(csvPath);
+    if (!jsonContacts.length) {
       res.status(500).json({
         data: [],
         status: 'failed',
@@ -84,10 +84,11 @@ contact.route('/').post(upload, async (req, res) => {
       });
     }
 
-    let values = [];
-    for (let i = 0; i < result.length; i++) {
-      values.push(`(${result[i].mobile},"${result[i].name}")`);
+    const values = [];
+    for (let i = 0; i < jsonContacts.length; i++) {
+      values.push(`(${jsonContacts[i].mobile},"${jsonContacts[i].name}")`);
     }
+
     let insertQuery = 'INSERT INTO contacts (mobile, name) VALUES';
 
     if (values.length > 0) {
@@ -101,10 +102,11 @@ contact.route('/').post(upload, async (req, res) => {
       if (err) {
         return;
       }
+      console.log('deleted successfully');
     });
 
     res.status(200).json({
-      data: dbResult,
+      data: jsonContacts,
       status: 'success',
       message: 'saved data successfully'
     });
@@ -113,20 +115,25 @@ contact.route('/').post(upload, async (req, res) => {
   }
 });
 
-contact.route('/:id').get(async (req, res) => {
+contact.route('/:id').post(async (req, res) => {
   //  send sms to a paticular mobile
   // const accountSid = 'ACaae3e2190a35b70c273ac0c23c65e525';
   // const authToken = '4fc110c56644c898b85b8f2730d5c977';
   const { id } = req.params;
-  const [clientDetail] = await pool.query(
+  const [userDetail] = await pool.query(
     `SELECT mobile FROM contacts WHERE id = ${id}`
   );
-  // console.log('client', clientDetail[0].mobile);
+  // console.log('client', userDetail[0].mobile);
   const client = require('twilio')(twilio.accountSid, twilio.authToken);
+  // if (
+  //   userDetail[0].mobile.match(/^(\+\d{1,3}[- ]?)?\d{10}$/) &&
+  //   !userDetail[0].mobile.match(/0{5,}/)
+  // ) {
+  console.log('userDetails', userDetail[0].mobile);
   client.messages
     .create({
-      to: `+91${clientDetail[0].mobile}`,
-      from: '+919892641971',
+      to: `+91${userDetail[0].mobile}`,
+      from: +919892641971,
       body: Math.floor(100000 + Math.random() * 900000)
     })
     .then(message => {
@@ -134,6 +141,7 @@ contact.route('/:id').get(async (req, res) => {
       console.log('njdhdj', message);
       //store sent message or qued messages
     });
+  // }
 });
 
 module.exports = contact;
